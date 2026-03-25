@@ -1,95 +1,135 @@
 # odoo-qa
 
-Browser smoke tests for any Odoo 18/19+ instance. Run after unit tests pass — on fresh installs, post-migration, or post-module-install.
+Browser smoke tests for any Odoo 18/19+ instance. Point it at a URL, it verifies every installed app loads and key workflows work. Screenshots on failure for human review.
 
-## What it does
+Run after unit tests pass — on fresh installs, post-migration, or post-module-install.
 
-- Opens every installed app and verifies the UI loads
-- Navigates key workflows (list → form, menus, search)
-- Auto-detects installed modules via JSON-RPC, skips tests for uninstalled ones
-- Screenshots on failure + HTML report for human review
-- Checkpoint screenshots of every view for visual diff
-- Performance timing with configurable thresholds
+## Usage
 
-## Quick start
+### Docker (recommended)
+
+```bash
+# Against a local Odoo instance
+ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa
+
+# Against a remote instance with custom creds
+ODOO_URL=https://staging.example.com \
+ODOO_USER=admin \
+ODOO_PASSWORD=mysecret \
+docker compose run --rm qa
+
+# Performance tests only
+ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa-perf
+
+# View the report
+open test-results/report/index.html
+```
+
+### Local (without Docker)
 
 ```bash
 npm install
 npx playwright install chromium
 
-# Run against a local instance
-ODOO_URL=http://localhost:8069 npx playwright test --grep-invert "perf:"
+# Smoke tests (skip perf)
+ODOO_URL=http://localhost:8069 npm run test:smoke
 
-# Run with perf tests
-ODOO_URL=http://localhost:8069 npx playwright test
+# All tests including perf
+ODOO_URL=http://localhost:8069 npm test
 
-# View the report
-npx playwright show-report test-results/report
+# View report
+npm run report
 ```
 
 ## Configuration
 
-| Env var | Default | Description |
-|---------|---------|-------------|
-| `ODOO_URL` | `http://localhost:8069` | Instance URL |
+All config is via environment variables — no config files to edit.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ODOO_URL` | `http://localhost:8069` | Odoo instance URL |
 | `ODOO_USER` | `admin` | Login username |
 | `ODOO_PASSWORD` | `admin` | Login password |
-| `ODOO_DB` | *(auto-detect)* | Database name |
+| `ODOO_DB` | *(auto-detect)* | Database name (required if multiple DBs) |
+
+## What it tests
+
+The suite auto-detects installed modules via JSON-RPC and **skips tests for modules that aren't installed**. No configuration needed.
+
+| Spec | Requires | What it checks |
+|------|----------|----------------|
+| 01-core | *(always)* | Web client loads, app switcher, settings, users list |
+| 02-contacts | `contacts` | List view, open form, search |
+| 03-sales | `sale` | Quotations, sale orders, products catalog |
+| 04-accounting | `account` | Dashboard, invoices, journal entries, chart of accounts |
+| 05-inventory | `stock` | Dashboard, delivery orders, products |
+| 06-crm | `crm` | Pipeline kanban, leads list, open opportunity |
+| 07-hr | `hr` | Employee kanban, open employee, departments |
+| 08-project | `project` | Project kanban, open project, all tasks |
+| 09-manufacturing | `mrp` | Dashboard, manufacturing orders, bills of materials |
+| 10-purchase | `purchase` | Dashboard, purchase orders |
+| 11-website | `website` | Homepage, contact page |
+| 12-perf | *(always)* | Page load time for 8 key views (10s threshold) |
+
+## Output
+
+After a run, `test-results/` contains:
+
+```
+test-results/
+├── report/index.html     # Playwright HTML report — open this
+├── checkpoints/          # Screenshot of every view visited (always)
+├── artifacts/            # Failure screenshots, videos, traces (on failure only)
+```
 
 ## GitHub Actions
 
-Trigger manually or call from another workflow:
+### Manual trigger (workflow_dispatch)
+
+Go to Actions → "Odoo Smoke Tests" → Run workflow. Enter the URL and credentials.
+
+### Call from another workflow
 
 ```yaml
-# In your migration/deploy pipeline:
 jobs:
+  deploy:
+    # ... your deploy/migration job ...
+
   smoke-test:
+    needs: deploy
     uses: ledoent/odoo-qa/.github/workflows/smoke-test.yml@main
     with:
       odoo_url: https://staging.example.com
       odoo_user: admin
+      run_perf: true
     secrets:
       odoo_password: ${{ secrets.ODOO_PASSWORD }}
 ```
 
-Or trigger via `workflow_dispatch` in the Actions tab.
-
-### Artifacts
+### Artifacts uploaded
 
 | Artifact | When | Contents |
 |----------|------|----------|
-| `qa-report` | Always | Playwright HTML report |
-| `qa-failures` | On failure | Screenshots, videos, traces of failed tests |
-| `qa-checkpoints` | Always | Screenshots of every view visited |
-| `qa-modules` | Always | Detected installed modules JSON |
+| `qa-report` | Always | HTML report |
+| `qa-failures` | On failure | Screenshots + video + trace per failed test |
+| `qa-checkpoints` | Always | Checkpoint screenshots of every view |
+| `qa-modules` | Always | JSON of detected installed modules |
 
-## Module coverage
+## npm scripts
 
-Tests auto-skip if the module isn't installed:
+| Script | Description |
+|--------|-------------|
+| `npm test` | Run all tests (smoke + perf) |
+| `npm run test:smoke` | Smoke tests only (skip perf) |
+| `npm run test:perf` | Performance tests only |
+| `npm run test:headed` | Run with visible browser (debugging) |
+| `npm run report` | Open the HTML report |
+| `npm run detect` | Print installed modules JSON |
 
-| Spec | Module | Tests |
-|------|--------|-------|
-| 01-core | *(always)* | Web client, app switcher, settings, users |
-| 02-contacts | `contacts` | List, form, search |
-| 03-sales | `sale` | Quotations, orders, products |
-| 04-accounting | `account` | Dashboard, invoices, journal entries, CoA |
-| 05-inventory | `stock` | Dashboard, deliveries, products |
-| 06-crm | `crm` | Pipeline, leads, opportunities |
-| 07-hr | `hr` | Employees, departments |
-| 08-project | `project` | Projects, tasks |
-| 09-manufacturing | `mrp` | Dashboard, MOs, BoMs |
-| 10-purchase | `purchase` | Dashboard, POs |
-| 11-website | `website` | Homepage, contact page |
-| 12-perf | *(always)* | Page load timing for key views |
+## Adding tests for new modules
 
-## Where this fits
+1. Create `specs/NN-modulename.spec.ts`
+2. Add `test.beforeEach(async ({ odoo }) => odoo.skipUnless(test, "module_name"));`
+3. Write tests using the `odoo` fixture (`openApp`, `openMenu`, `waitForLoaded`, `checkpoint`, etc.)
 
-```
-Python unit tests (oca-ci)      ← ORM-level, per-module
-Odoo JS tours                   ← built-in, tightly coupled
-         ↓
-odoo-qa                         ← browser-level, any instance
-  Screenshots on failure
-  HTML report for review
-  Perf baselines
-```
+The fixture provides: `openApp()`, `openMenu()`, `waitForLoaded()`, `clickButton()`, `openFirstRecord()`, `expectView()`, `expectMinRecords()`, `checkpoint()`, `skipUnless()`.

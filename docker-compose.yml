@@ -1,0 +1,38 @@
+# Run odoo-qa against any Odoo instance:
+#
+#   ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa
+#
+# With custom creds:
+#   ODOO_URL=https://staging.example.com ODOO_USER=admin ODOO_PASSWORD=secret docker compose run --rm qa
+#
+# Perf tests only:
+#   ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa-perf
+#
+# View report after run:
+#   open test-results/report/index.html
+
+services:
+  qa:
+    build: .
+    environment:
+      - ODOO_URL=${ODOO_URL:-http://host.docker.internal:8069}
+      - ODOO_USER=${ODOO_USER:-admin}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - ODOO_DB=${ODOO_DB:-}
+    volumes:
+      - ./test-results:/qa/test-results
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  qa-perf:
+    build: .
+    command: ["--grep", "perf:"]
+    environment:
+      - ODOO_URL=${ODOO_URL:-http://host.docker.internal:8069}
+      - ODOO_USER=${ODOO_USER:-admin}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - ODOO_DB=${ODOO_DB:-}
+    volumes:
+      - ./test-results:/qa/test-results
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
