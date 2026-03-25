@@ -14,14 +14,7 @@ test.describe("Manufacturing", () => {
   test("manufacturing orders", async ({ page, odoo }) => {
     await page.goto("/web");
     await odoo.openApp("Manufacturing");
-    await odoo.waitForLoaded();
-    const menu = page.locator(".o_menu_sections").getByRole("menuitem", { name: /Operations/i });
-    if (await menu.isVisible()) {
-      await menu.click();
-      const sub = page.getByRole("menuitem", { name: /Manufacturing Orders/i });
-      if (await sub.isVisible()) await sub.click();
-      await odoo.waitForLoaded();
-    }
+    await odoo.openMenuPath("Operations", "Manufacturing Orders").catch(() => {});
     await expect(page.locator(".o_content")).toBeVisible();
     await odoo.checkpoint("manufacturing-orders");
   });
@@ -29,14 +22,7 @@ test.describe("Manufacturing", () => {
   test("bills of materials", async ({ page, odoo }) => {
     await page.goto("/web");
     await odoo.openApp("Manufacturing");
-    await odoo.waitForLoaded();
-    const menu = page.locator(".o_menu_sections").getByRole("menuitem", { name: /Products/i });
-    if (await menu.isVisible()) {
-      await menu.click();
-      const sub = page.getByRole("menuitem", { name: /Bills of Materials/i });
-      if (await sub.isVisible()) await sub.click();
-      await odoo.waitForLoaded();
-    }
+    await odoo.openMenuPath("Products", "Bills of Materials").catch(() => {});
     await expect(page.locator(".o_content")).toBeVisible();
     await odoo.checkpoint("bills-of-materials");
   });

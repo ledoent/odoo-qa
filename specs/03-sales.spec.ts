@@ -26,13 +26,7 @@ test.describe("Sales", () => {
   test("view products", async ({ page, odoo }) => {
     await page.goto("/web");
     await odoo.openApp("Sales");
-    const menu = page.locator(".o_menu_sections").getByRole("menuitem", { name: /Products/i });
-    if (await menu.isVisible()) {
-      await menu.click();
-      const sub = page.getByRole("menuitem", { name: /^Products$/i });
-      if (await sub.isVisible()) await sub.click();
-      await odoo.waitForLoaded();
-    }
+    await odoo.openMenuPath("Products", "Products").catch(() => {});
     await expect(page.locator(".o_list_view, .o_kanban_view")).toBeVisible();
     await odoo.checkpoint("products");
   });
