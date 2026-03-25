@@ -83,9 +83,15 @@ export class WorkflowPage extends OdooPage {
     return (await widget.first().textContent()) || "";
   }
 
-  /** Get the current record ID from the URL */
+  /** Get the current record ID from the URL. Saves first if still on /new. */
   async getCurrentRecordId(): Promise<number> {
-    const url = this.page.url();
+    let url = this.page.url();
+    // If still on /new, trigger save first
+    if (url.includes("/new")) {
+      await this.saveForm();
+      await this.page.waitForTimeout(1000);
+      url = this.page.url();
+    }
     // Odoo 19 URL pattern: /odoo/sales/123 or /odoo/model/123
     const match = url.match(/\/(\d+)(?:\?|$|#)/);
     if (match) return parseInt(match[1]);
