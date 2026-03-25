@@ -1,0 +1,122 @@
+name: Odoo Smoke Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      odoo_url:
+        description: "Odoo instance URL (e.g. https://staging.example.com)"
+        required: true
+        type: string
+      odoo_user:
+        description: "Login username"
+        required: false
+        default: "admin"
+        type: string
+      odoo_db:
+        description: "Database name (leave empty for auto-detect)"
+        required: false
+        default: ""
+        type: string
+      run_perf:
+        description: "Include performance tests"
+        required: false
+        default: false
+        type: boolean
+
+  # Allow calling from other workflows (e.g. after OpenUpgrade migration)
+  workflow_call:
+    inputs:
+      odoo_url:
+        required: true
+        type: string
+      odoo_user:
+        required: false
+        default: "admin"
+        type: string
+      odoo_db:
+        required: false
+        default: ""
+        type: string
+      run_perf:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      odoo_password:
+        required: true
+
+jobs:
+  smoke-test:
+    name: Browser Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Create output directories
+        run: mkdir -p test-results/checkpoints .auth .cache
+
+      - name: Detect installed modules
+        env:
+          ODOO_URL: ${{ inputs.odoo_url }}
+          ODOO_USER: ${{ inputs.odoo_user }}
+          ODOO_PASSWORD: ${{ secrets.odoo_password || secrets.ODOO_PASSWORD }}
+          ODOO_DB: ${{ inputs.odoo_db }}
+        run: node scripts/detect-modules.mjs | tee .cache/modules.json
+
+      - name: Run smoke tests
+        env:
+          ODOO_URL: ${{ inputs.odoo_url }}
+          ODOO_USER: ${{ inputs.odoo_user }}
+          ODOO_PASSWORD: ${{ secrets.odoo_password || secrets.ODOO_PASSWORD }}
+          ODOO_DB: ${{ inputs.odoo_db }}
+        run: |
+          if [ "${{ inputs.run_perf }}" = "true" ]; then
+            npx playwright test
+          else
+            npx playwright test --grep-invert "perf:"
+          fi
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: test-results/report/
+          retention-days: 30
+
+      - name: Upload failure screenshots & traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-failures
+          path: test-results/artifacts/
+          retention-days: 30
+
+      - name: Upload checkpoint screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-checkpoints
+          path: test-results/checkpoints/
+          retention-days: 30
+
+      - name: Upload module detection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-modules
+          path: .cache/modules.json
+          retention-days: 30
