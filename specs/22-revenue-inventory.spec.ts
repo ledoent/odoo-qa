@@ -45,23 +45,8 @@ test.describe.serial("Revenue: Inventory Delivery", () => {
     if (await validateBtn.isVisible().catch(() => false)) {
       await validateBtn.click();
       await page.waitForTimeout(1000);
-
-      // Handle "Immediate Transfer" or backorder dialogs
-      for (let i = 0; i < 3; i++) {
-        const modal = page.locator(".modal-dialog");
-        if (await modal.isVisible().catch(() => false)) {
-          const okBtn = modal.locator(
-            "button:has-text('Apply'), button:has-text('Ok'), button:has-text('Confirm'), .btn-primary"
-          );
-          await okBtn.first().click();
-          await page.waitForTimeout(1000);
-        } else {
-          break;
-        }
-      }
+      await odoo.confirmDialogs();
     }
-
-    await odoo.waitForLoaded();
     await odoo.checkpoint("inventory-wf-02-validated");
 
     // RPC: verify picking is done
