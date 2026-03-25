@@ -23,7 +23,6 @@ function getInstalledModules(): Record<string, boolean> {
     writeFileSync(CACHE_PATH, JSON.stringify(modules));
     return modules;
   } catch {
-    // If detection fails, assume all modules are installed (no skipping)
     return {};
   }
 }
@@ -40,10 +39,9 @@ function modules(): Record<string, boolean> {
 export class OdooPage {
   constructor(protected page: Page) {}
 
-  /** Skip the current test if a module is not installed */
+  /** Skip the current test if any of the given modules are not installed */
   skipUnless(test: typeof base, ...moduleNames: string[]) {
     const mods = modules();
-    // If detection returned empty, don't skip anything
     if (Object.keys(mods).length === 0) return;
     for (const mod of moduleNames) {
       if (!mods[mod]) {
@@ -53,7 +51,7 @@ export class OdooPage {
     }
   }
 
-  /** Navigate to an Odoo app by its menu name */
+  /** Navigate to an Odoo app by its display name */
   async openApp(name: string) {
     await this.page.locator(".o_navbar_apps_menu button").click();
     const app = this.page.locator("a.o_app").filter({
@@ -64,14 +62,14 @@ export class OdooPage {
     await this.waitForLoaded();
   }
 
-  /** Navigate to a sub-menu within the current app */
-  async openMenu(...path: string[]) {
-    for (const item of path) {
-      await this.page
+  /** Navigate through a menu path (e.g. openMenuPath("Orders", "Orders")) */
+  async openMenuPath(...itemNames: string[]) {
+    for (const name of itemNames) {
+      const item = this.page
         .locator(".o_menu_sections")
-        .getByRole("menuitem", { name: item })
-        .first()
-        .click();
+        .getByRole("menuitem", { name: new RegExp(name, "i") })
+        .first();
+      await item.click();
     }
     await this.waitForLoaded();
   }
@@ -128,8 +126,6 @@ export class OdooPage {
     });
   }
 }
-
-// --- Extended test fixture ---
 
 export const test = base.extend<{ odoo: OdooPage }>({
   odoo: async ({ page }, use) => {
