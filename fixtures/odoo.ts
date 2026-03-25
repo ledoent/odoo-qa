@@ -38,7 +38,7 @@ function modules(): Record<string, boolean> {
 // --- Odoo page helper ---
 
 export class OdooPage {
-  constructor(private page: Page) {}
+  constructor(protected page: Page) {}
 
   /** Skip the current test if a module is not installed */
   skipUnless(test: typeof base, ...moduleNames: string[]) {
