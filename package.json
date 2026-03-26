@@ -14,7 +14,7 @@
     "detect": "node scripts/detect-modules.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0"
+    "@playwright/test": "1.58.2"
   },
   "dependencies": {
     "pixelmatch": "^7.1.0",
