@@ -1,0 +1,123 @@
+name: Capture Visual Baseline
+
+# Generates baseline screenshots from a clean Odoo instance with demo data.
+# Stored as a GitHub Release asset so PR workflows can download them for comparison.
+
+on:
+  workflow_dispatch:
+    inputs:
+      odoo_version:
+        description: "Odoo version (18.0 or 19.0)"
+        required: true
+        default: "19.0"
+        type: choice
+        options: ["18.0", "19.0"]
+      odoo_url:
+        description: "Odoo URL (leave empty to start a local Docker instance)"
+        required: false
+        type: string
+
+  # Auto-capture on main push (weekly or on demand)
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday at 6am UTC
+
+jobs:
+  capture-baseline:
+    name: Capture Baseline (${{ inputs.odoo_version || '19.0' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ODOO_VERSION: ${{ inputs.odoo_version || '19.0' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Odoo with demo data
+        if: inputs.odoo_url == ''
+        run: |
+          docker run -d --name odoo \
+            --network host \
+            -e HOST=localhost \
+            -e USER=odoo \
+            -e PASSWORD=odoo \
+            odoo:${{ env.ODOO_VERSION }} \
+            odoo -d baseline_db \
+              -i base,contacts,sale_management,purchase,stock,mrp,account,crm,project,hr,hr_attendance,hr_expense,calendar,event,fleet,lunch,maintenance \
+              --without-demo= \
+              --stop-after-init --no-http
+
+          # Wait for init to complete
+          docker wait odoo
+
+          # Start serving
+          docker rm odoo
+          docker run -d --name odoo \
+            --network host \
+            -e HOST=localhost \
+            -e USER=odoo \
+            -e PASSWORD=odoo \
+            odoo:${{ env.ODOO_VERSION }} \
+            -- -d baseline_db
+
+          # Wait for Odoo to be ready
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8069/web/login > /dev/null && break
+            sleep 2
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p test-results/checkpoints .auth .cache
+
+      - name: Run QA suite for baseline
+        env:
+          ODOO_URL: ${{ inputs.odoo_url || 'http://localhost:8069' }}
+          ODOO_USER: admin
+          ODOO_PASSWORD: admin
+          ODOO_DB: ${{ inputs.odoo_url && '' || 'baseline_db' }}
+        run: npx playwright test --grep-invert "perf:" || true
+
+      - name: Package baseline
+        run: |
+          cd test-results/checkpoints
+          tar czf ../../baseline-checkpoints-${{ env.ODOO_VERSION }}.tar.gz *.png
+          cd ../..
+          echo "Packaged $(ls test-results/checkpoints/*.png | wc -l) screenshots"
+
+      - name: Create/update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="baseline-${{ env.ODOO_VERSION }}"
+          # Delete existing release if present
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          # Create new release with baseline
+          gh release create "$TAG" \
+            --title "Visual Baseline (${{ env.ODOO_VERSION }})" \
+            --notes "Auto-generated baseline screenshots from Odoo ${{ env.ODOO_VERSION }} with demo data." \
+            baseline-checkpoints-${{ env.ODOO_VERSION }}.tar.gz
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f odoo 2>/dev/null || true
