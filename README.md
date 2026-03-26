@@ -71,6 +71,22 @@ The suite auto-detects installed modules via JSON-RPC and **skips tests for modu
 | 11-website | `website` | Homepage, contact page |
 | 12-perf | *(always)* | Page load time for 8 key views (10s threshold) |
 
+## Docker image
+
+Published to GHCR on every push to main:
+
+```bash
+docker pull ghcr.io/ledoent/odoo-qa:latest
+
+# Run against any Odoo instance
+docker run --rm \
+  -e ODOO_URL=https://staging.example.com \
+  -e ODOO_USER=admin \
+  -e ODOO_PASSWORD=secret \
+  -v $(pwd)/results:/qa/test-results \
+  ghcr.io/ledoent/odoo-qa:latest
+```
+
 ## Output
 
 After a run, `test-results/` contains:
@@ -78,9 +94,12 @@ After a run, `test-results/` contains:
 ```
 test-results/
 ├── report/index.html     # Playwright HTML report — open this
+├── junit.xml             # JUnit XML — parsed by GitHub/GitLab CI for inline results
 ├── checkpoints/          # Screenshot of every view visited (always)
 ├── artifacts/            # Failure screenshots, videos, traces (on failure only)
 ```
+
+The **JUnit XML** is the key file for CI integration — both GitHub Actions and GitLab CI parse it to show test results inline in merge requests.
 
 ## GitHub Actions
 
@@ -113,6 +132,7 @@ jobs:
 | `qa-report` | Always | HTML report |
 | `qa-failures` | On failure | Screenshots + video + trace per failed test |
 | `qa-checkpoints` | Always | Checkpoint screenshots of every view |
+| `qa-junit` | Always | JUnit XML for CI test reporting |
 | `qa-modules` | Always | JSON of detected installed modules |
 
 ## npm scripts
@@ -125,6 +145,30 @@ jobs:
 | `npm run test:headed` | Run with visible browser (debugging) |
 | `npm run report` | Open the HTML report |
 | `npm run detect` | Print installed modules JSON |
+
+## GitLab CI
+
+Use the published Docker image directly:
+
+```yaml
+odoo-qa:
+  stage: test
+  image: ghcr.io/ledoent/odoo-qa:latest
+  variables:
+    ODOO_URL: https://staging.example.com
+    ODOO_PASSWORD: $ODOO_PASSWORD  # set in CI/CD > Variables
+  script:
+    - mkdir -p test-results/checkpoints .auth .cache
+    - node scripts/detect-modules.mjs > .cache/modules.json || true
+    - npx playwright test --grep-invert "perf:" || true
+  artifacts:
+    when: always
+    paths: [test-results/]
+    reports:
+      junit: test-results/junit.xml
+```
+
+See `.gitlab-ci.example.yml` for a complete template.
 
 ## Adding tests for new modules
 

@@ -18,6 +18,7 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ["html", { open: "never", outputFolder: "test-results/report" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
     ["list"],
   ],
   use: {
