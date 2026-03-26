@@ -47,33 +47,9 @@ export class WorkflowPage extends OdooPage {
     await this.page.waitForTimeout(300);
   }
 
-  /** Fill a numeric field */
-  async fillNumericField(fieldName: string, value: number) {
-    const input = this.page.locator(S.fieldInput(fieldName));
-    await input.first().waitFor({ state: "visible", timeout: 5_000 });
-    await input.first().click();
-    await input.first().fill(String(value));
-  }
-
-  /** Click "Add a line" in a one2many field */
-  async addOne2manyLine(fieldName: string) {
-    await this.page.locator(
-      `${S.field(fieldName)} .o_field_x2many_list_row_add a, ${S.field(fieldName)} a:has-text("Add a line")`
-    ).first().click();
-    await this.page.waitForTimeout(300);
-  }
-
   /** Click a status bar button (Confirm, Validate, etc.) */
   async clickStatusBarButton(name: string) {
     await this.page.locator(S.statusBarButton(name)).first().click();
-    await this.waitForLoaded();
-  }
-
-  /** Click a smart/stat button by text */
-  async clickSmartButton(name: string | RegExp) {
-    const btn = this.page.locator(".oe_button_box .oe_stat_button, button, a")
-      .filter({ hasText: name });
-    await btn.first().click();
     await this.waitForLoaded();
   }
 
