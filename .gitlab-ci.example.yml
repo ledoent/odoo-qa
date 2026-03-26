@@ -1,0 +1,40 @@
+# GitLab CI template for running odoo-qa against an Odoo instance.
+#
+# Usage: Copy this file to your project as .gitlab-ci.yml and set variables:
+#   ODOO_URL      — target instance URL
+#   ODOO_USER     — login (default: admin)
+#   ODOO_PASSWORD — password (set in CI/CD > Variables, masked)
+#   ODOO_DB       — database name (optional, auto-detect if single DB)
+#
+# Or include it from the odoo-qa repo:
+#   include:
+#     - project: 'ledoent/odoo-qa'
+#       ref: main
+#       file: '.gitlab-ci.example.yml'
+
+stages:
+  - test
+
+odoo-qa:
+  stage: test
+  image: ghcr.io/ledoent/odoo-qa:latest
+  variables:
+    ODOO_URL: ${ODOO_URL}
+    ODOO_USER: ${ODOO_USER:-admin}
+    ODOO_PASSWORD: ${ODOO_PASSWORD}
+    ODOO_DB: ${ODOO_DB:-}
+  script:
+    - mkdir -p test-results/checkpoints .auth .cache
+    - node scripts/detect-modules.mjs > .cache/modules.json || true
+    - npx playwright test --grep-invert "perf:" || true
+  artifacts:
+    when: always
+    paths:
+      - test-results/report/
+      - test-results/checkpoints/
+      - test-results/artifacts/
+      - test-results/junit.xml
+    reports:
+      junit: test-results/junit.xml
+    expire_in: 30 days
+  timeout: 20m

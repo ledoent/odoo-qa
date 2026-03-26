@@ -18,6 +18,7 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ["html", { open: "never", outputFolder: "test-results/report" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
     ["list"],
   ],
   use: {
@@ -36,8 +37,16 @@ export default defineConfig({
     },
     {
       name: "smoke",
+      testMatch: /(0[1-9]|1[0-2])-.*\.spec\.ts/,
       use: { storageState: ".auth/session.json" },
       dependencies: ["setup"],
+    },
+    {
+      name: "workflow",
+      testMatch: /[2-9]\d-.*\.spec\.ts/,
+      use: { storageState: ".auth/session.json" },
+      dependencies: ["setup"],
+      timeout: 120_000,
     },
   ],
 });

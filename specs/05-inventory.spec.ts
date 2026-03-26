@@ -14,14 +14,9 @@ test.describe("Inventory", () => {
   test("delivery orders", async ({ page, odoo }) => {
     await page.goto("/web");
     await odoo.openApp("Inventory");
-    await odoo.waitForLoaded();
-    const menu = page.locator(".o_menu_sections").getByRole("menuitem", { name: /Operations/i });
-    if (await menu.isVisible()) {
-      await menu.click();
-      const sub = page.getByRole("menuitem", { name: /Delivery Orders|Deliveries/i });
-      if (await sub.isVisible()) await sub.click();
-      await odoo.waitForLoaded();
-    }
+    await odoo.openMenuPath("Operations", "Deliveries").catch(() =>
+      odoo.openMenuPath("Operations", "Delivery Orders").catch(() => {})
+    );
     await expect(page.locator(".o_content")).toBeVisible();
     await odoo.checkpoint("delivery-orders");
   });
@@ -29,14 +24,7 @@ test.describe("Inventory", () => {
   test("products", async ({ page, odoo }) => {
     await page.goto("/web");
     await odoo.openApp("Inventory");
-    await odoo.waitForLoaded();
-    const menu = page.locator(".o_menu_sections").getByRole("menuitem", { name: /Products/i });
-    if (await menu.isVisible()) {
-      await menu.click();
-      const sub = page.getByRole("menuitem", { name: /^Products$/i });
-      if (await sub.isVisible()) await sub.click();
-      await odoo.waitForLoaded();
-    }
+    await odoo.openMenuPath("Products", "Products").catch(() => {});
     await expect(page.locator(".o_list_view, .o_kanban_view")).toBeVisible();
     await odoo.checkpoint("inventory-products");
   });

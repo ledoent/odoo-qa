@@ -1,28 +1,26 @@
 # odoo-qa
 
-Browser smoke tests for any Odoo 18/19+ instance. Point it at a URL, it verifies every installed app loads and key workflows work. Screenshots on failure for human review.
+Browser smoke and E2E workflow tests for any Odoo 18/19+ instance. Point it at a URL, it auto-detects installed modules, verifies every app loads, runs key business workflows, and produces screenshots + JUnit XML for CI.
 
 Run after unit tests pass — on fresh installs, post-migration, or post-module-install.
 
-## Usage
+## Quick start
 
 ### Docker (recommended)
 
 ```bash
-# Against a local Odoo instance
+docker pull ghcr.io/ledoent/odoo-qa:latest
+
+# Run against any Odoo instance
+docker run --rm \
+  -e ODOO_URL=https://staging.example.com \
+  -e ODOO_USER=admin \
+  -e ODOO_PASSWORD=secret \
+  -v $(pwd)/results:/qa/test-results \
+  ghcr.io/ledoent/odoo-qa:latest
+
+# Or with docker compose
 ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa
-
-# Against a remote instance with custom creds
-ODOO_URL=https://staging.example.com \
-ODOO_USER=admin \
-ODOO_PASSWORD=mysecret \
-docker compose run --rm qa
-
-# Performance tests only
-ODOO_URL=http://host.docker.internal:8069 docker compose run --rm qa-perf
-
-# View the report
-open test-results/report/index.html
 ```
 
 ### Local (without Docker)
@@ -31,19 +29,15 @@ open test-results/report/index.html
 npm install
 npx playwright install chromium
 
-# Smoke tests (skip perf)
-ODOO_URL=http://localhost:8069 npm run test:smoke
-
-# All tests including perf
-ODOO_URL=http://localhost:8069 npm test
-
-# View report
-npm run report
+ODOO_URL=http://localhost:8069 npm test        # all tests
+ODOO_URL=http://localhost:8069 npm run test:smoke    # smoke only
+ODOO_URL=http://localhost:8069 npm run test:workflow # workflows only
+npm run report                                  # view HTML report
 ```
 
 ## Configuration
 
-All config is via environment variables — no config files to edit.
+All config via environment variables — no files to edit.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -54,41 +48,142 @@ All config is via environment variables — no config files to edit.
 
 ## What it tests
 
-The suite auto-detects installed modules via JSON-RPC and **skips tests for modules that aren't installed**. No configuration needed.
+The suite auto-detects installed modules via JSON-RPC and **skips tests for modules that aren't installed**.
 
-| Spec | Requires | What it checks |
-|------|----------|----------------|
-| 01-core | *(always)* | Web client loads, app switcher, settings, users list |
-| 02-contacts | `contacts` | List view, open form, search |
-| 03-sales | `sale` | Quotations, sale orders, products catalog |
-| 04-accounting | `account` | Dashboard, invoices, journal entries, chart of accounts |
-| 05-inventory | `stock` | Dashboard, delivery orders, products |
-| 06-crm | `crm` | Pipeline kanban, leads list, open opportunity |
-| 07-hr | `hr` | Employee kanban, open employee, departments |
-| 08-project | `project` | Project kanban, open project, all tasks |
-| 09-manufacturing | `mrp` | Dashboard, manufacturing orders, bills of materials |
-| 10-purchase | `purchase` | Dashboard, purchase orders |
-| 11-website | `website` | Homepage, contact page |
-| 12-perf | *(always)* | Page load time for 8 key views (10s threshold) |
+### Smoke tests (01-12) — verify apps load
+
+| Spec | Module | What it checks |
+|------|--------|----------------|
+| 01 | *(core)* | Web client, app switcher, settings, users |
+| 02 | `contacts` | List, form, search |
+| 03 | `sale` | Quotations, orders, products |
+| 04 | `account` | Dashboard, invoices, journal entries, chart of accounts |
+| 05 | `stock` | Dashboard, deliveries, products |
+| 06 | `crm` | Pipeline, leads, opportunities |
+| 07 | `hr` | Employees, departments |
+| 08 | `project` | Projects, tasks |
+| 09 | `mrp` | Dashboard, MOs, BoMs |
+| 10 | `purchase` | Dashboard, POs |
+| 11 | `website` | Homepage, contact page |
+| 12 | *(perf)* | Page load timing for 8 key views (10s threshold) |
+
+### Workflow tests (20-92) — exercise real business flows
+
+Each workflow spec creates records, clicks through multi-step processes, and verifies results via both UI and JSON-RPC backend calls.
+
+**Revenue cycle (20-29)**
+
+| Spec | Workflow |
+|------|----------|
+| 20 | CRM: Lead → Opportunity → Won |
+| 21 | Sales: Create quote → Add product → Confirm SO → Verify delivery |
+| 22 | Inventory: Validate delivery order (RPC setup) |
+| 23 | Accounting: Create invoice from SO → Confirm → Register payment |
+| 24 | Credit note from posted invoice |
+| 25 | Partial invoicing: deliver 5 of 10, invoice delivered qty |
+| 26 | Internal transfer between stock locations |
+| 27 | Inventory adjustment (physical count) |
+| 28 | Bank reconciliation view |
+| 29 | Financial reports: P&L, Balance Sheet, General Ledger, Aged Receivable |
+
+**Procurement (30-37)**
+
+| Spec | Workflow |
+|------|----------|
+| 30 | Purchase: RFQ → Confirm PO → Receive goods |
+| 31 | Vendor bill from PO after receipt |
+| 32 | Purchase return (receive then return) |
+| 33 | Dropshipping routes config |
+| 34 | Sales teams config |
+| 35 | Analytic accounting plans |
+| 36 | Payment providers config |
+| 37 | Expense re-invoicing products |
+
+**Manufacturing (40-41)**
+
+| Spec | Workflow |
+|------|----------|
+| 40 | MO → Confirm → Produce |
+| 41 | MO with BoM component verification + consume |
+
+**HR & operations (50-59)**
+
+| Spec | Workflow |
+|------|----------|
+| 50 | Create employee |
+| 51 | Create + submit expense |
+| 52 | Attendance check in/out |
+| 53 | Employee skills tab |
+| 54 | Fleet: vehicle + odometer |
+| 55 | Lunch menu |
+| 56 | Maintenance request |
+| 57 | Work location scheduling |
+| 58 | Org chart view |
+| 59 | Digest KPI emails config |
+
+**Project & productivity (60-72)**
+
+| Spec | Workflow |
+|------|----------|
+| 60 | Create project + task |
+| 61 | Task stage transitions |
+| 62 | Personal to-do |
+| 70 | Website homepage + contact form |
+| 71 | Event management |
+| 72 | Calendar event scheduling |
+
+**Config & reports (80-87)**
+
+| Spec | Workflow |
+|------|----------|
+| 80 | Company settings |
+| 81 | Users list, user form, apps/modules |
+| 82 | Email/technical config |
+| 83 | Sales analysis report + pivot view |
+| 84 | Inventory valuation + stock moves reports |
+| 85 | Purchase analysis report |
+| 86 | CRM pipeline analysis |
+| 87 | Spreadsheet dashboards |
+
+**Cross-module E2E (90-92)**
+
+| Spec | Workflow |
+|------|----------|
+| 90 | **Order-to-Cash**: SO → Delivery → Invoice → Payment (4 serial steps) |
+| 91 | **Procure-to-Pay**: PO → Receipt → Vendor Bill → Payment |
+| 92 | **Make-to-Order**: SO → MO → Produce → Deliver |
+
+## Architecture
+
+- **Self-contained specs** — each file creates its own prerequisites via RPC. No cross-file state.
+- **`test.describe.serial()`** — multi-step workflows run in order; if step 1 fails, steps 2-N skip.
+- **Shard-safe** — `--shard=N/M` splits at file level. No cross-file dependencies.
+- **Module auto-detection** — JSON-RPC to `ir.module.module` at startup. Cached in `.cache/modules.json`.
+- **RPC verification** — after UI actions, backend state is verified via JSON-RPC (e.g., SO state = 'sale').
+- **Selector constants** — Odoo-specific selectors extracted to `S.field()`, `S.autocompleteItem`, etc.
+- **Modal handling** — `confirmDialogs()` handles Odoo's multi-modal sequences.
 
 ## Output
-
-After a run, `test-results/` contains:
 
 ```
 test-results/
 ├── report/index.html     # Playwright HTML report — open this
-├── checkpoints/          # Screenshot of every view visited (always)
+├── junit.xml             # JUnit XML — parsed by GitHub/GitLab CI for inline results
+├── checkpoints/          # Screenshot of every view visited (always captured)
 ├── artifacts/            # Failure screenshots, videos, traces (on failure only)
 ```
 
-## GitHub Actions
+**JUnit XML** is the key CI integration file — both GitHub Actions and GitLab CI parse it to show test results inline in merge/pull requests.
 
-### Manual trigger (workflow_dispatch)
+## CI integration
+
+### GitHub Actions
+
+#### Manual trigger
 
 Go to Actions → "Odoo Smoke Tests" → Run workflow. Enter the URL and credentials.
 
-### Call from another workflow
+#### Call from another workflow
 
 ```yaml
 jobs:
@@ -106,30 +201,103 @@ jobs:
       odoo_password: ${{ secrets.ODOO_PASSWORD }}
 ```
 
-### Artifacts uploaded
+#### Artifacts
 
 | Artifact | When | Contents |
 |----------|------|----------|
 | `qa-report` | Always | HTML report |
 | `qa-failures` | On failure | Screenshots + video + trace per failed test |
 | `qa-checkpoints` | Always | Checkpoint screenshots of every view |
+| `qa-junit` | Always | JUnit XML for CI test reporting |
 | `qa-modules` | Always | JSON of detected installed modules |
+
+### Integration with OCA fork repos
+
+Run targeted QA on PRs that change specific Odoo modules. Only the relevant specs run — not the full suite.
+
+```bash
+# Resolve which specs to run for changed modules
+node scripts/resolve-specs.mjs sale stock
+# → specs/03-sales.spec.ts, specs/21-revenue-sales.spec.ts, specs/05-inventory.spec.ts, ...
+
+# Use as Playwright grep pattern
+npx playwright test --grep "$(node scripts/resolve-specs.mjs --grep sale)"
+```
+
+Add to any OCA fork repo (see `templates/caller-workflow.yml`):
+
+```yaml
+# .github/workflows/odoo-qa.yml in your fork
+qa-screenshots:
+  uses: ledoent/odoo-qa/.github/workflows/qa-for-pr.yml@main
+  with:
+    odoo_url: https://your-runboat-instance.example.com
+    changed_modules: sale_discount,sale_order_line_note
+  secrets:
+    odoo_password: ${{ secrets.ODOO_PASSWORD }}
+```
+
+The module-to-spec mapping is in `specs/module-map.json`. Reverse dependencies are resolved automatically (e.g., changing `stock` also runs `sale_stock` and `purchase_stock` specs).
+
+### GitLab CI
+
+Use the GHCR image directly:
+
+```yaml
+odoo-qa:
+  stage: test
+  image: ghcr.io/ledoent/odoo-qa:latest
+  variables:
+    ODOO_URL: https://staging.example.com
+    ODOO_PASSWORD: $ODOO_PASSWORD  # set in CI/CD > Variables, masked
+  script:
+    - mkdir -p test-results/checkpoints .auth .cache
+    - node scripts/detect-modules.mjs > .cache/modules.json || true
+    - npx playwright test --grep-invert "perf:" || true
+  artifacts:
+    when: always
+    paths: [test-results/]
+    reports:
+      junit: test-results/junit.xml
+```
+
+See `.gitlab-ci.example.yml` for a complete template.
 
 ## npm scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm test` | Run all tests (smoke + perf) |
-| `npm run test:smoke` | Smoke tests only (skip perf) |
+| `npm test` | All tests (smoke + workflow + perf) |
+| `npm run test:smoke` | Smoke tests only |
+| `npm run test:workflow` | Workflow tests only |
 | `npm run test:perf` | Performance tests only |
-| `npm run test:headed` | Run with visible browser (debugging) |
+| `npm run test:interactive` | Headed browser with Playwright Inspector |
+| `npm run test:headed` | Headed browser (no debug) |
 | `npm run report` | Open the HTML report |
 | `npm run detect` | Print installed modules JSON |
 
 ## Adding tests for new modules
 
 1. Create `specs/NN-modulename.spec.ts`
-2. Add `test.beforeEach(async ({ odoo }) => odoo.skipUnless(test, "module_name"));`
-3. Write tests using the `odoo` fixture (`openApp`, `openMenu`, `waitForLoaded`, `checkpoint`, etc.)
+2. Add `odoo.skipUnless(test, "module_name")` at the top of each test
+3. Write tests using the fixtures:
 
-The fixture provides: `openApp()`, `openMenu()`, `waitForLoaded()`, `clickButton()`, `openFirstRecord()`, `expectView()`, `expectMinRecords()`, `checkpoint()`, `skipUnless()`.
+**Smoke fixture** (`fixtures/odoo.ts`): `openApp()`, `openMenuPath()`, `waitForLoaded()`, `clickButton()`, `openFirstRecord()`, `expectView()`, `expectMinRecords()`, `checkpoint()`, `skipUnless()`
+
+**Workflow fixture** (`fixtures/workflow.ts`): Extends smoke with `fillField()`, `fillMany2one()`, `clickStatusBarButton()`, `confirmDialog()`, `confirmDialogs()`, `getCurrentRecordId()`, `saveForm()`, `clickNew()`, `getFieldValue()`, `switchToListView()`, `openReport()`
+
+**RPC client** (`fixtures/odoo-rpc.ts`): `searchRead()`, `create()`, `write()`, `unlink()`, `callMethod()`, `findDemoPartner()`, `findDemoProduct()`, `findDemoVendor()`, `createConfirmedSO()`, `createConfirmedPO()`, `getPickings()`, `getSOInvoices()`, `OdooRPC.odooDatetime()`
+
+## File numbering convention
+
+```
+01-12:  Smoke tests
+20-29:  Revenue cycle workflows
+30-39:  Procurement + config workflows
+40-49:  Manufacturing workflows
+50-59:  HR + operations workflows
+60-69:  Project + productivity workflows
+70-79:  Website + events workflows
+80-89:  Configuration + reports
+90-99:  Cross-module E2E integration
+```
