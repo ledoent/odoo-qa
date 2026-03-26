@@ -178,4 +178,55 @@ export class OdooRPC {
     if (fallback.length > 0) return fallback[0];
     throw new Error("No demo vendor found");
   }
+
+  // --- Workflow convenience methods ---
+
+  /** Create a confirmed sale order with lines. Returns { soId, soName, pickingIds }. */
+  async createConfirmedSO(
+    partnerId: number,
+    lines: { productId: number; qty: number }[]
+  ): Promise<{ soId: number; soName: string }> {
+    const soId = await this.create("sale.order", { partner_id: partnerId });
+    for (const line of lines) {
+      await this.create("sale.order.line", {
+        order_id: soId,
+        product_id: line.productId,
+        product_uom_qty: line.qty,
+      });
+    }
+    await this.callMethod("sale.order", "action_confirm", [[soId]]);
+    const so = await this.read("sale.order", [soId], ["name"]);
+    return { soId, soName: so[0].name };
+  }
+
+  /** Create a confirmed purchase order with lines. Returns { poId, poName }. */
+  async createConfirmedPO(
+    vendorId: number,
+    lines: { productId: number; qty: number; price?: number }[]
+  ): Promise<{ poId: number; poName: string }> {
+    const poId = await this.create("purchase.order", { partner_id: vendorId });
+    for (const line of lines) {
+      await this.create("purchase.order.line", {
+        order_id: poId,
+        product_id: line.productId,
+        product_qty: line.qty,
+        price_unit: line.price || 10,
+      });
+    }
+    await this.callMethod("purchase.order", "button_confirm", [[poId]]);
+    const po = await this.read("purchase.order", [poId], ["name"]);
+    return { poId, poName: po[0].name };
+  }
+
+  /** Get stock pickings for an origin (SO or PO name) */
+  async getPickings(origin: string): Promise<{ id: number; state: string }[]> {
+    return this.searchRead("stock.picking", [["origin", "=", origin]], ["id", "state"]);
+  }
+
+  /** Get invoices linked to a sale order */
+  async getSOInvoices(soId: number): Promise<{ id: number; state: string; payment_state: string }[]> {
+    const so = await this.read("sale.order", [soId], ["invoice_ids"]);
+    if (!so[0].invoice_ids?.length) return [];
+    return this.read("account.move", so[0].invoice_ids, ["id", "state", "payment_state"]);
+  }
 }

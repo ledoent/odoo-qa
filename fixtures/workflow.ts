@@ -140,6 +140,20 @@ export class WorkflowPage extends OdooPage {
     await this.page.waitForTimeout(500);
   }
 
+  /** Switch to list view */
+  async switchToListView() {
+    const btn = this.page.locator(".o_control_panel .o_switch_view.o_list");
+    if (await btn.isVisible().catch(() => false)) {
+      await btn.click();
+      await this.waitForLoaded();
+    }
+  }
+
+  /** Navigate to a report from the Reporting menu */
+  async openReport(reportName: string) {
+    await this.openMenuPath("Reporting", reportName);
+  }
+
   /** Click the "New" button in control panel */
   async clickNew() {
     await this.page.locator(
