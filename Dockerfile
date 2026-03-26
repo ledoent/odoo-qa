@@ -6,9 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+RUN chmod +x docker-entrypoint.sh
 
-RUN mkdir -p test-results/checkpoints test-results/report test-results/artifacts test-results/diffs .auth .cache \
-    && chmod -R 777 test-results .auth .cache
-
-ENTRYPOINT ["npx", "playwright", "test"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["--grep-invert", "perf:"]
