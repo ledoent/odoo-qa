@@ -17,10 +17,15 @@ test.describe("Inventory: Stock Adjustment", () => {
     }
     const product = storableProducts[0];
 
-    // Create a stock quant adjustment via RPC
+    // Find default stock location
+    const locations = await rpc.searchRead(
+      "stock.warehouse", [], ["lot_stock_id"], { limit: 1 }
+    );
+    const stockLocationId = locations[0]?.lot_stock_id?.[0] || 8;
+
     const quantId = await rpc.create("stock.quant", {
       product_id: product.id,
-      location_id: 8,
+      location_id: stockLocationId,
       inventory_quantity: 100,
     });
 

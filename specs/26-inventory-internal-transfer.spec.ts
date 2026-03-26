@@ -8,7 +8,7 @@ test.describe("Inventory: Internal Transfer", () => {
     const pickTypes = await rpc.searchRead(
       "stock.picking.type",
       [["code", "=", "internal"]],
-      ["id", "name"],
+      ["id", "name", "default_location_src_id", "default_location_dest_id"],
       { limit: 1 }
     );
     if (pickTypes.length === 0) {
@@ -27,8 +27,8 @@ test.describe("Inventory: Internal Transfer", () => {
       product_id: product.id,
       product_uom_qty: 3,
       name: `E2E Transfer ${Date.now()}`,
-      location_id: 8, // stock.stock_location_stock (default)
-      location_dest_id: 8,
+      location_id: pickTypes[0].default_location_src_id?.[0] || 8,
+      location_dest_id: pickTypes[0].default_location_dest_id?.[0] || 8,
     });
 
     // Navigate to the transfer
