@@ -7,7 +7,8 @@ RUN npm ci
 
 COPY . .
 
-RUN mkdir -p test-results/checkpoints test-results/report test-results/artifacts .auth .cache
+RUN mkdir -p test-results/checkpoints test-results/report test-results/artifacts test-results/diffs .auth .cache \
+    && chmod -R 777 test-results .auth .cache
 
 ENTRYPOINT ["npx", "playwright", "test"]
 CMD ["--grep-invert", "perf:"]
