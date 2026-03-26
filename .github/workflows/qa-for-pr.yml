@@ -1,0 +1,131 @@
+name: QA for PR
+
+# Reusable workflow — called by OCA fork repos when a PR changes modules.
+# Runs only the specs relevant to the changed modules + their dependencies.
+
+on:
+  workflow_call:
+    inputs:
+      odoo_url:
+        description: "Odoo instance URL (e.g. runboat URL)"
+        required: true
+        type: string
+      odoo_user:
+        description: "Login username"
+        required: false
+        default: "admin"
+        type: string
+      odoo_db:
+        description: "Database name"
+        required: false
+        default: ""
+        type: string
+      changed_modules:
+        description: "Comma-separated list of changed Odoo module names"
+        required: false
+        default: ""
+        type: string
+    secrets:
+      odoo_password:
+        required: true
+
+  workflow_dispatch:
+    inputs:
+      odoo_url:
+        description: "Odoo instance URL"
+        required: true
+        type: string
+      changed_modules:
+        description: "Comma-separated module names (e.g. sale,stock)"
+        required: true
+        type: string
+
+jobs:
+  qa-screenshots:
+    name: QA Screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ledoent/odoo-qa
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p test-results/checkpoints .auth .cache
+
+      - name: Detect installed modules
+        env:
+          ODOO_URL: ${{ inputs.odoo_url }}
+          ODOO_USER: ${{ inputs.odoo_user || 'admin' }}
+          ODOO_PASSWORD: ${{ secrets.odoo_password || secrets.ODOO_PASSWORD }}
+          ODOO_DB: ${{ inputs.odoo_db }}
+        run: node scripts/detect-modules.mjs | tee .cache/modules.json
+
+      - name: Resolve specs for changed modules
+        id: resolve
+        run: |
+          MODULES="${{ inputs.changed_modules }}"
+          if [ -z "$MODULES" ]; then
+            echo "No modules specified, running all workflow specs"
+            echo "grep_pattern=" >> $GITHUB_OUTPUT
+          else
+            # Convert comma-separated to space-separated
+            MODULES_SPACED=$(echo "$MODULES" | tr ',' ' ')
+            PATTERN=$(node scripts/resolve-specs.mjs --grep $MODULES_SPACED)
+            echo "grep_pattern=$PATTERN" >> $GITHUB_OUTPUT
+            echo "Running specs matching: $PATTERN"
+          fi
+
+      - name: Run targeted QA tests
+        env:
+          ODOO_URL: ${{ inputs.odoo_url }}
+          ODOO_USER: ${{ inputs.odoo_user || 'admin' }}
+          ODOO_PASSWORD: ${{ secrets.odoo_password || secrets.ODOO_PASSWORD }}
+          ODOO_DB: ${{ inputs.odoo_db }}
+        run: |
+          PATTERN="${{ steps.resolve.outputs.grep_pattern }}"
+          if [ -z "$PATTERN" ]; then
+            npx playwright test
+          else
+            npx playwright test --grep "$PATTERN"
+          fi
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: test-results/report/
+          retention-days: 14
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-failures
+          path: test-results/artifacts/
+          retention-days: 14
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-screenshots
+          path: test-results/checkpoints/
+          retention-days: 14
+
+      - name: Upload JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-junit
+          path: test-results/junit.xml
+          retention-days: 14

@@ -7,11 +7,13 @@ test.describe.serial("Revenue: Sales Cycle", () => {
   test("create and confirm quotation", async ({ page, odoo, rpc }) => {
     odoo.skipUnless(test, "sale");
 
+    const partner = await rpc.findDemoPartner();
+
     // Create quotation
     await page.goto("/web");
     await odoo.openApp("Sales");
     await odoo.clickNew();
-    await odoo.fillMany2one("partner_id", "Azure Interior");
+    await odoo.fillMany2one("partner_id", partner.name.substring(0, 12));
     await odoo.checkpoint("sales-wf-01-new-quote");
 
     // Click "Add a product"

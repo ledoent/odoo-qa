@@ -211,6 +211,34 @@ jobs:
 | `qa-junit` | Always | JUnit XML for CI test reporting |
 | `qa-modules` | Always | JSON of detected installed modules |
 
+### Integration with OCA fork repos
+
+Run targeted QA on PRs that change specific Odoo modules. Only the relevant specs run — not the full suite.
+
+```bash
+# Resolve which specs to run for changed modules
+node scripts/resolve-specs.mjs sale stock
+# → specs/03-sales.spec.ts, specs/21-revenue-sales.spec.ts, specs/05-inventory.spec.ts, ...
+
+# Use as Playwright grep pattern
+npx playwright test --grep "$(node scripts/resolve-specs.mjs --grep sale)"
+```
+
+Add to any OCA fork repo (see `templates/caller-workflow.yml`):
+
+```yaml
+# .github/workflows/odoo-qa.yml in your fork
+qa-screenshots:
+  uses: ledoent/odoo-qa/.github/workflows/qa-for-pr.yml@main
+  with:
+    odoo_url: https://your-runboat-instance.example.com
+    changed_modules: sale_discount,sale_order_line_note
+  secrets:
+    odoo_password: ${{ secrets.ODOO_PASSWORD }}
+```
+
+The module-to-spec mapping is in `specs/module-map.json`. Reverse dependencies are resolved automatically (e.g., changing `stock` also runs `sale_stock` and `purchase_stock` specs).
+
 ### GitLab CI
 
 Use the GHCR image directly:

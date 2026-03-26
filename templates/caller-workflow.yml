@@ -1,0 +1,49 @@
+# Template: Add this to your OCA fork repo as .github/workflows/odoo-qa.yml
+#
+# Prerequisites:
+# 1. Your repo must have a runboat instance or other Odoo instance available
+# 2. Set ODOO_PASSWORD in repo Settings > Secrets and variables > Actions
+#
+# How it works:
+# 1. On PR, detects which Odoo modules changed
+# 2. Calls ledoent/odoo-qa's reusable workflow
+# 3. Runs only the relevant QA specs for those modules + dependencies
+# 4. Uploads screenshots and test results as PR artifacts
+
+name: QA Screenshots
+
+on:
+  pull_request:
+    branches: ["18.0", "19.0"]
+    types: [opened, synchronize]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.modules.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed modules
+        id: modules
+        run: |
+          # Get changed files vs base branch
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          # Extract module names (first path component, exclude non-module dirs)
+          MODULES=$(echo "$CHANGED" | cut -d/ -f1 | sort -u | grep -v -E '^\.|^setup$|^requirements' | tr '\n' ',' | sed 's/,$//')
+          echo "Changed modules: $MODULES"
+          echo "list=$MODULES" >> $GITHUB_OUTPUT
+
+  qa-screenshots:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules != ''
+    uses: ledoent/odoo-qa/.github/workflows/qa-for-pr.yml@main
+    with:
+      # Replace with your runboat URL pattern or staging instance
+      odoo_url: https://your-runboat-instance.example.com
+      changed_modules: ${{ needs.detect-changes.outputs.modules }}
+    secrets:
+      odoo_password: ${{ secrets.ODOO_PASSWORD }}

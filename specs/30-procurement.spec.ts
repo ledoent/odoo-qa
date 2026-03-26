@@ -7,12 +7,14 @@ test.describe.serial("Procurement: Purchase Cycle", () => {
   test("create and confirm purchase order", async ({ page, odoo, rpc }) => {
     odoo.skipUnless(test, "purchase");
 
+    const vendor = await rpc.findDemoVendor();
+
     await page.goto("/web");
     await odoo.openApp("Purchase");
     await odoo.clickNew();
 
-    // Fill vendor
-    await odoo.fillMany2one("partner_id", "Wood Corner");
+    // Fill vendor dynamically
+    await odoo.fillMany2one("partner_id", vendor.name.substring(0, 12));
     await page.waitForTimeout(500);
 
     // Add product line
