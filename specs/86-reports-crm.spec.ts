@@ -6,7 +6,7 @@ test.describe("Reports: CRM", () => {
 
     await page.goto("/web");
     await odoo.openApp("CRM");
-    await odoo.openMenuPath("Reporting", "Pipeline").catch(() =>
+    await odoo.openReport("Pipeline").catch(() =>
       odoo.openMenuPath("Reporting").catch(() => {})
     );
     await odoo.waitForLoaded();

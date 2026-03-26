@@ -6,7 +6,9 @@ test.describe("Reports: Purchase", () => {
 
     await page.goto("/web");
     await odoo.openApp("Purchase");
-    await odoo.openMenuPath("Reporting").catch(() => {});
+    await odoo.openReport("Purchase").catch(() =>
+      odoo.openMenuPath("Reporting").catch(() => {})
+    );
     await odoo.waitForLoaded();
     await expect(page.locator(".o_content")).toBeVisible();
     await odoo.checkpoint("reports-wf-09-purchase-analysis");
