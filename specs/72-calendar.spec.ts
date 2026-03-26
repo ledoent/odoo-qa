@@ -1,4 +1,5 @@
 import { test, expect } from "../fixtures/workflow";
+import { OdooRPC } from "../fixtures/odoo-rpc";
 
 test.describe("Calendar: Event Scheduling", () => {
   test("create calendar event", async ({ page, odoo, rpc }) => {
@@ -8,8 +9,8 @@ test.describe("Calendar: Event Scheduling", () => {
     // Create calendar event via RPC
     const eventId = await rpc.create("calendar.event", {
       name: `E2E Meeting ${ts}`,
-      start: new Date().toISOString().replace("T", " ").slice(0, 19),
-      stop: new Date(Date.now() + 3600000).toISOString().replace("T", " ").slice(0, 19),
+      start: OdooRPC.odooDatetime(),
+      stop: OdooRPC.odooDatetime(new Date(Date.now() + 3600000)),
     });
 
     await page.goto("/web");

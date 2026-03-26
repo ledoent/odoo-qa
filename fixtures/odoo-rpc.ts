@@ -179,6 +179,11 @@ export class OdooRPC {
     throw new Error("No demo vendor found");
   }
 
+  /** Format a JS Date to Odoo's expected 'YYYY-MM-DD HH:MM:SS' format */
+  static odooDatetime(date: Date = new Date()): string {
+    return date.toISOString().replace("T", " ").slice(0, 19);
+  }
+
   // --- Workflow convenience methods ---
 
   /** Create a confirmed sale order with lines. Returns { soId, soName, pickingIds }. */
