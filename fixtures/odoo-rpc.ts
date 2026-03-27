@@ -46,10 +46,11 @@ export class OdooRPC {
     // Auto-detect DB if not provided
     if (!this.db) {
       const list = await this.jsonrpc("/web/database/list", {});
-      if (list?.length === 1) {
-        this.db = list[0];
+      if (list?.length >= 1) {
+        // Pick the first non-baseonly database (runboat convention)
+        this.db = list.find((d: string) => !d.endsWith("-baseonly")) || list[0];
       } else {
-        throw new Error(`Multiple databases found: ${list?.join(", ")}. Set ODOO_DB.`);
+        throw new Error("No databases found.");
       }
     }
 

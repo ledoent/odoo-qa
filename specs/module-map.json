@@ -35,5 +35,6 @@
   "analytic": ["35-analytic-accounts"],
   "payment": ["36-payment-providers"],
   "sales_team": ["34-sales-teams"],
-  "base": ["01-core", "80-config-company", "81-config-users"]
+  "base": ["01-core", "80-config-company", "81-config-users"],
+  "mis_builder": ["95-mis-builder"]
 }
