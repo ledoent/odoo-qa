@@ -23,6 +23,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: process.env.ODOO_URL || "http://localhost:8069",
+    ignoreHTTPSErrors: true,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     video: "retain-on-failure",
