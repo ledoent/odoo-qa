@@ -128,26 +128,28 @@ test.describe("MIS Builder: Report View", () => {
     await page.goBack();
     await odoo.waitForLoaded();
 
-    // Uncheck "Comparison Mode" if visible
-    const comparisonCheckbox = page.locator(
-      ".o_field_widget[name='comparison_mode'] input, label:has-text('Comparison') input"
-    );
-    if (await comparisonCheckbox.isVisible().catch(() => false)) {
-      await comparisonCheckbox.click();
-      await odoo.saveForm();
-      await odoo.checkpoint("mis-builder-wf-07-totaled-config");
+    // Switch to totaled mode via RPC (avoids date validation issues in UI)
+    await rpc.write("mis.report.instance", [instanceId], {
+      comparison_mode: false,
+      date_from: "2026-01-01",
+      date_to: "2026-12-31",
+    });
 
-      // Preview totaled view
-      const previewBtn2 = page.locator("button:has-text('Preview'), button:has-text('Display')").first();
-      if (await previewBtn2.isVisible().catch(() => false)) {
-        await previewBtn2.click();
-        await page.waitForTimeout(5000);
-        await odoo.waitForLoaded();
-      }
-      await reportContent.first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
-      await page.waitForTimeout(2000);
-      await odoo.checkpoint("mis-builder-wf-08-multicompany-totaled");
+    // Reload the form
+    await page.goto(`/odoo/action-${actionId}/${instanceId}`);
+    await odoo.waitForLoaded();
+    await odoo.checkpoint("mis-builder-wf-07-totaled-config");
+
+    // Preview totaled view
+    const previewBtn2 = page.locator("button:has-text('Preview'), button:has-text('Display')").first();
+    if (await previewBtn2.isVisible().catch(() => false)) {
+      await previewBtn2.click();
+      await page.waitForTimeout(5000);
+      await odoo.waitForLoaded();
     }
+    await reportContent.first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    await odoo.checkpoint("mis-builder-wf-08-multicompany-totaled");
   });
 
   test("MIS report instances list", async ({ page, odoo, rpc }) => {
