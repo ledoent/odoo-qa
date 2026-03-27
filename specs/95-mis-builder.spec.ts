@@ -94,8 +94,13 @@ test.describe("MIS Builder: Report View", () => {
     );
     const actionId = actions.length > 0 ? actions[0].id : 331;
 
-    // Open the multi-company report (comparison mode — separate columns per company)
-    await page.goto(`/odoo/action-${actionId}/${instanceId}`);
+    // Get all company IDs for the cids URL parameter
+    const companies = await rpc.searchRead("res.company", [], ["id"], { limit: 10 });
+    const cids = companies.map((c: any) => c.id).join("-");
+
+    // Open with multi-company context via cids parameter
+    // This tells Odoo to include all companies in the session
+    await page.goto(`/odoo/action-${actionId}/${instanceId}?cids=${cids}`);
     await odoo.waitForLoaded();
     await odoo.checkpoint("mis-builder-wf-05-multicompany-config");
 

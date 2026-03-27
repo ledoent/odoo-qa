@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIS Builder Multi-Company Fix — Visual Evidence</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f8f6f1;
+    --accent: #c43e1c;
+    --muted: #8a8478;
+    --border: #d4cfc6;
+    --highlight: #fff3cd;
+    --pass: #2d6a2e;
+    --fail: #b91c1c;
+    --card: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Newsreader', Georgia, serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .grain {
+    position: fixed; inset: 0; z-index: 999; pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header {
+    padding: 3rem 2rem 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  header .subtitle {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 1.1rem;
+  }
+
+  .content {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  section {
+    margin-bottom: 3rem;
+  }
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h2 .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.6em;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .badge-pass { background: #dcfce7; color: var(--pass); }
+  .badge-fail { background: #fee2e2; color: var(--fail); }
+  .badge-config { background: #e0e7ff; color: #3730a3; }
+
+  .bug-callout {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+  }
+
+  .bug-callout strong { color: var(--fail); }
+
+  .bug-callout code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: rgba(0,0,0,0.06);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+  }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 700px) {
+    .comparison { grid-template-columns: 1fr; }
+  }
+
+  .comparison .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .panel-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header.before { background: #fee2e2; color: var(--fail); }
+  .panel-header.after { background: #dcfce7; color: var(--pass); }
+  .panel-header.config { background: #e0e7ff; color: #3730a3; }
+
+  .panel img {
+    width: 100%;
+    display: block;
+  }
+
+  .panel .annotation {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  .panel .annotation mark {
+    background: var(--highlight);
+    padding: 0.1em 0.3em;
+    border-radius: 2px;
+    font-style: normal;
+    color: var(--ink);
+  }
+
+  .full-width {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-bottom: 1.5rem;
+  }
+
+  .full-width img { width: 100%; display: block; }
+
+  .files {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    list-style: none;
+    padding: 0;
+  }
+
+  .files li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+  }
+
+  .files li:last-child { border-bottom: none; }
+
+  .files .path { color: var(--ink); }
+  .files .desc { color: var(--muted); }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    border-top: 1px solid var(--border);
+    max-width: 960px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header>
+  <div class="tag">OCA/mis-builder #782</div>
+  <h1>Fix multi-company account display</h1>
+  <div class="subtitle">Account codes show "False" in multi-company MIS reports on Odoo 18</div>
+</header>
+
+<div class="content">
+
+  <section>
+    <h2>The Bug</h2>
+    <div class="bug-callout">
+      In Odoo 18, <code>account.code</code> became company-dependent. When a MIS report pulls data from <strong>multiple companies</strong>, account detail rows display <strong>"False"</strong> instead of the account code (e.g. "600000 Expenses") because the lookup reads from the wrong company context.
+    </div>
+  </section>
+
+  <section>
+    <h2>Mode 1: Comparison <span class="badge badge-config">Separate columns per company</span></h2>
+    <div class="comparison">
+      <div class="panel">
+        <div class="panel-header config">Configuration</div>
+        <img src="https://storage.googleapis.com/ledo-pr-assets/odoo-qa/mis-builder-pr4/mis-builder-wf-05-multicompany-config.png" alt="Comparison mode config">
+        <div class="annotation"><mark>Comparison Mode</mark> checked — each company gets its own column</div>
+      </div>
+      <div class="panel">
+        <div class="panel-header after">Report output (after fix)</div>
+        <img src="https://storage.googleapis.com/ledo-pr-assets/odoo-qa/mis-builder-pr4/mis-builder-wf-06-multicompany-comparison.png" alt="Comparison mode report">
+        <div class="annotation">Account codes <mark>600000 Expenses</mark> and <mark>211000 Account Payable</mark> render correctly — not "False"</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Mode 2: Totaled <span class="badge badge-config">Consolidated single column</span></h2>
+    <div class="comparison">
+      <div class="panel">
+        <div class="panel-header config">Configuration</div>
+        <img src="https://storage.googleapis.com/ledo-pr-assets/odoo-qa/mis-builder-pr4/mis-builder-wf-07-totaled-config.png" alt="Totaled mode config">
+        <div class="annotation">Comparison Mode off, <mark>Multiple companies</mark> enabled with <mark>Branch Office + YourCompany</mark></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header after">Report output (after fix)</div>
+        <img src="https://storage.googleapis.com/ledo-pr-assets/odoo-qa/mis-builder-pr4/mis-builder-wf-08-multicompany-totaled.png" alt="Totaled mode report">
+        <div class="annotation">Data consolidated from both companies. Account codes <mark>correct</mark>, no "False" values.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Reference: Single Company <span class="badge badge-pass">Working</span></h2>
+    <div class="full-width">
+      <div class="panel-header after">Demo Expenses vs Budget (single company, with data)</div>
+      <img src="https://storage.googleapis.com/ledo-pr-assets/odoo-qa/mis-builder-pr4/mis-builder-wf-02-report-view.png" alt="Single company report">
+    </div>
+  </section>
+
+  <section>
+    <h2>Files Changed</h2>
+    <ul class="files">
+      <li><span class="path">mis_builder/models/kpimatrix.py</span><span class="desc">Accept query_companies in KpiMatrix</span></li>
+      <li><span class="path">mis_builder/models/mis_report.py</span><span class="desc">Thread query_companies through prepare_kpi_matrix()</span></li>
+      <li><span class="path">mis_builder/models/mis_report_instance.py</span><span class="desc">Use with_company() for account name resolution</span></li>
+      <li><span class="path">mis_builder/tests/test_mis_report_instance.py</span><span class="desc">Multi-company test cases</span></li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>
+  Generated by odoo-qa &middot; Screenshots captured from runboat instance &middot; Automated Playwright E2E
+</footer>
+
+</body>
+</html>
