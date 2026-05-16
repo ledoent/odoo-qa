@@ -26,6 +26,8 @@
   "website": ["11-website", "70-website"],
   "event": ["71-events"],
   "calendar": ["72-calendar"],
+  "farm_market_event": ["73-farm-market-preorder"],
+  "farm_market_event_website": ["73-farm-market-preorder"],
   "lunch": ["55-hr-lunch"],
   "maintenance": ["56-maintenance"],
   "mail": ["82-config-email"],
